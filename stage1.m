@@ -91,10 +91,13 @@ while 1
     crop_img_blue = imcrop(img, bbox_blue);
     if bbox_blue(3) > widthThreshold && bbox_blue(4) > heightThreshold
         % 파란 박스가 충분히 클 때 전진
-        moveforward(drone, 'Distance', 0.5, 'Speed', 1);
         disp("파란색 천 앞까지 도착 완료")
+        %여기 숫자 바꾸기 %,
+        moveforward(drone, 'Distance',1.5 ,'Speed', 1);
+        
         break
     end
+    moveforward(drone, 'Distance', 0.5, 'Speed', 1); %조금씩 전진 
 
 
     % 5. 파란 영역에서 원 검출
@@ -135,7 +138,10 @@ while 1
     subplot(2,2,2);
     imshow(crop_img_blue);
     title('파란색 영역');
-
 end
+
+
+
+
 
 
