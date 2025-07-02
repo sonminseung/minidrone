@@ -1,3 +1,5 @@
+
+%회전하고 중심이랑 맞는지 확인한 후 다시 calibration
 clear;
 clc;
 
@@ -140,7 +142,7 @@ while 1
     title('파란색 영역');
 end
 
-turn(drone,deg2rad(90));
+turn(drone,deg2rad(120));
 
 
 
