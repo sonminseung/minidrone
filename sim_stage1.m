@@ -2,14 +2,11 @@ clear;
 clc;
 
 center_pts = [480,200];
-real_center = [480, 360];
 drone = ryze();
 cam = camera(drone);
 takeoff(drone);
 Err_pixel = 80;
-Err_pixel_1 = 50;
 moveup(drone,'Distance',1,'Speed',1);
-pause(3);
 
 
 % h = 0.55, 0.65 사이
@@ -86,56 +83,17 @@ while 1
     end
 end
 
-
-%% 두번째 calibration 후에 조금씩 전진하면서 계속 위치를 조정하는 알고리즘
-% 앞으로 조금식 전진하면서 파란색 천을 계속 인식시킨 후에 파란색 천의 높이 너비가 threshold를 넘어가면 
-% 좌우 정렬을 하는 알고리즘
+%%
 while 1
-    moveforward(drone , "Distance", 0.3, "Speed", 1);
-    [frame , ~] = snapshot(cam);
-    hsv = rgb2hsv(frame);
-    h = hsv(:,:,1);
-    s = hsv(:,:,2);
-    v = hsv(:,:,3);
-
-    % 2-2) 파란색 마스크
-    blue_mask = (h > 0.55) & (h < 0.75) & (s > 0.4) & (v > 0.2);
-    blue_mask_clean = bwareafilt(blue_mask, 1);
-
-    % 2-3) 파란색 천 인식
-    props_blue = regionprops(blue_mask_clean, 'BoundingBox');
-    if isempty(props_blue)
-        warning("파란 영역도 못 찾았습니다. 멈춥니다.");
+    x = input('f == 전진 t == 스탑','s');
+    if x == 'f'
+        moveforward(drone,'Distance', 0.4,'Speed',1);
+    elseif x == 't'
+        land(drone)
         break;
     end
-
-    %2-4) 파란색 천의 중심, 너비, 높이 를 통해 threshold를 넘어갔는지 판단 그리고 좌우정렬 알고리즘
-    
-
-    bbox = props_blue(1).BoundingBox;
-    centers = [ bbox(1) + bbox(3)/2,  bbox(2) + bbox(4)/2 ];
-
-    dis = real_center - centers;
-
-    if abs(dis(1)) < Err_pixel1
-        disp("좌우 정렬 완료 — 루프 탈출");
-        break;
-    end
-    if dis(1) > Err_pixel1
-        moveright(drone,'Distance',0.2);
-        fprintf("turn right\n");
-    elseif dis(1) < -Err_pixel1
-        moveleft(drone,'Distance',0.2);
-        fprintf("turn left\n");
-    end
-
 end
-
-
-%% 좌우 정렬 후 드론을 조금 낮게 이동시킨 후에 직진 알고리즘 (원 통과)
-movedown(drone, "Distance",0.3,"Speed",1);
-%moveforward(drone, "Distance",1 ,"Speed",1);
-
+%% 두번째 calibration 후에 조금씩 전진하면서 계속 위치를 조정하는 알고리즘
 
 
 
