@@ -1,7 +1,8 @@
 clear;
 clc;
 
-center_pts = [480,180];
+center_pts = [480,200];
+center_a = [480, 260];
 drone = ryze();
 cam = camera(drone);
 takeoff(drone);
@@ -9,7 +10,7 @@ Err_pixel = 20;
 
 
 
-Err_pixel_1 = 60;
+Err_pixel_1 = 40;
 moveup(drone,'Distance',0.7,'Speed',1);
 pause(3);
 
@@ -132,7 +133,7 @@ while 1
 
         if (bbox(3) > 700 && bbox(4) > 500)
             centers = [ bbox(1) + bbox(3)/2,  bbox(2) + bbox(4)/2 ];
-            dis = centers - center_pts;
+            dis = centers - center_a;
             if abs(dis(1)) < Err_pixel && abs(dis(2)) < Err_pixel
                 disp("좌우 정렬 완료 — 루프 탈출");
                 break;
