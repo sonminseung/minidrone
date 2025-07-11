@@ -1,5 +1,81 @@
 clear;
 clc;
+
+%% 1. 데이터 정의
+x_data = single([ ...
+    933, 926, 942, 930, 896, ...
+    898, 892, 894, 905, 900, ...
+    877, 890, 892, 890, 884, ...
+    682, 686, 686, 682, 684, ...
+    664, 668, 666, 668, 664, ...
+    618, 616, 616, 620, 616, ...
+    564, 564, 568, 570, 573, ...
+    530, 531, 536, 532, 530, ...
+    512, 513, 518, 520, 522 ]);
+
+y_data = single([ ...
+    1.4, 1.4, 1.4, 1.4, 1.4, ...
+    1.6, 1.6, 1.6, 1.6, 1.6, ...
+    1.8, 1.8, 1.8, 1.8, 1.8, ...
+    2.0, 2.0, 2.0, 2.0, 2.0, ...
+    2.2, 2.2, 2.2, 2.2, 2.2, ...
+    2.4, 2.4, 2.4, 2.4, 2.4, ...
+    2.6, 2.6, 2.6, 2.6, 2.6, ...
+    2.8, 2.8, 2.8, 2.8, 2.8, ...
+    3.0, 3.0, 3.0, 3.0, 3.0 ]);
+
+%% 2. 정규화 (Min-Max Scaling)
+x_min = min(x_data);
+x_max = max(x_data);
+x_norm = (x_data - x_min) / (x_max - x_min);
+
+x_all = x_norm(:);  % (N×1) 숫자형 배열
+y_all = y_data(:);  % (N×1) 숫자형 배열
+
+%% 3. 학습/테스트 데이터 분할
+cv = cvpartition(length(x_all), 'HoldOut', 0.2);
+xTrain = x_all(training(cv));
+yTrain = y_all(training(cv));
+xTest = x_all(test(cv));
+yTest = y_all(test(cv));
+
+%% 4. 회귀용 신경망 구성 (Dense NN)
+layers = [
+    featureInputLayer(1)
+    fullyConnectedLayer(16)
+    reluLayer
+    fullyConnectedLayer(8)
+    reluLayer
+    fullyConnectedLayer(1)
+    regressionLayer
+    ];
+
+options = trainingOptions('adam', ...
+    'MaxEpochs', 500, ...
+    'MiniBatchSize', 8, ...
+    'Shuffle', 'every-epoch', ...
+    'ValidationData', {xTest, yTest}, ...
+    'ValidationPatience', 10, ...
+    'Verbose', false, ...
+    'Plots', 'training-progress');
+
+%% 5. 학습 실행
+net = trainNetwork(xTrain, yTrain, layers, options);
+
+%% 6. 예측 및 평가
+yPred = predict(net, xTest);
+
+% RMSE, MAE 계산
+rmse = sqrt(mean((yTest - yPred).^2));
+mae = mean(abs(yTest - yPred));
+
+fprintf('📉 RMSE: %.4f m\n', rmse);
+fprintf('📏 MAE: %.4f m\n', mae);
+
+
+
+%%
+
 %가로 error_pixel 세로 error_pixel 나누기
 center_pts = [480,200];
 center_a = [480, 260];
@@ -7,7 +83,7 @@ drone = ryze();
 cam = camera(drone);
 takeoff(drone);
 %멀때  error_pixel
-Err_pixel = 20;
+Err_pixel = 30;
 
 
 
@@ -33,7 +109,9 @@ while 1
     % 1-3) 원 검출 시도
     binary_res = xor(blue_mask_clean, 1);
     stats = regionprops(binary_res, 'Centroid', 'Circularity', 'Area');
-
+    props_blue =  regionprops(blue_mask_clean, 'BoundingBox');
+    bbox = props_blue(1).BoundingBox;
+    width = bbox(3);
     if isempty(stats)
         % --- 원이 안 보이면 bounding box 중심으로 대체 ---
         props_blue = regionprops(blue_mask_clean, 'BoundingBox');
@@ -100,76 +178,16 @@ while 1
     end
 end
 
-%% 두번째 calibration 후에 조금씩 전진하면서 계속 위치를 조정하는 알고리즘
-while 1
-    x = input('f == 전진 t == 스탑','s');
-    disp(newline);
-    if x == 'f'
-        moveforward(drone, 'Distance', 0.5);
-        [frame , ~] = snapshot(cam);
-        hsv = rgb2hsv(frame);
-        h = hsv(:,:,1);
-        s = hsv(:,:,2);
-        v = hsv(:,:,3);
-
-        % 2-2) 파란색 마스크
-        blue_mask = (h > 0.55) & (h < 0.75) & (s > 0.4) & (v > 0.2);
-        blue_mask_clean = bwareafilt(blue_mask, 1);
-
-        % 2-3) 파란색 천 인식
-        props_blue = regionprops(blue_mask_clean, 'BoundingBox');
-
-
-
-        if isempty(props_blue)
-            warning("파란 영역도 못 찾았습니다. 멈춥니다.");
-            break; %파란 영역 인식 못했으면 알고리즘 생각
-        end
-        bbox = props_blue(1).BoundingBox;
-
-        %2-4) 파란색 천의 중심, 너비, 높이 를 통해 threshold를 넘어갔는지 판단 그리고 좌우정렬 알고리즘
-        imshow(frame); hold on
-        rectangle('Position', bbox, 'EdgeColor', 'b', 'LineWidth', 1);
-        hold off
-
-
-        if (bbox(3) > 700 && bbox(4) > 500)
-            centers = [ bbox(1) + bbox(3)/2,  bbox(2) + bbox(4)/2 ];
-            dis = centers - center_a;
-            if abs(dis(1)) < Err_pixel && abs(dis(2)) < Err_pixel
-                disp("좌우 정렬 완료 — 루프 탈출");
-                break;
-            end
-            if dis(1) > Err_pixel_1
-                moveright(drone,'Distance',0.2);
-                fprintf("move right\n");
-            elseif dis(1) < -Err_pixel_1
-                moveleft(drone,'Distance',0.2);
-                fprintf("move left\n");
-            end
-            if dis(2) > Err_pixel_1
-                movedown(drone,'Distance',0.2);
-                fprintf("movedown\n");
-            elseif dis(2) < -Err_pixel_1
-                moveup(drone,'Distance',0.2);
-                fprintf("moveup\n");
-            end
-        end
-    elseif x == 't'
-        land(drone)
-        break;
-    end
-end
-
 %% 원통과 일단 시켜보기
-while 1
-    x = input('f == 전진 t == 스탑','s');
-    if x == 'f'
-        moveforward(drone,'Distance', 0.5,'Speed',1);
-    elseif x == 't'
-        land(drone)
-        break;
-    end
+x = input('f == 전진 t == 스탑','s');
+if x == 'f'
+    %% 8. 새로운 값 예측 함수 (예: 570 입력)
+    x_input = width;
+    x_input_norm = (x_input - x_min) / (x_max - x_min);  % 정규화
+    y_output = predict(net, x_input_norm);
+    fprintf('\n[예측 결과] 입력 X = %.0f → 예측 Y = %.3f m\n', x_input, y_output);
+elseif x == 't'
+    land(drone)
 end
 
 

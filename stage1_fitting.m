@@ -7,7 +7,7 @@ drone = ryze();
 cam = camera(drone);
 takeoff(drone);
 %멀때  error_pixel
-Err_pixel = 20;
+Err_pixel = 30;
 
 
 
@@ -33,7 +33,9 @@ while 1
     % 1-3) 원 검출 시도
     binary_res = xor(blue_mask_clean, 1);
     stats = regionprops(binary_res, 'Centroid', 'Circularity', 'Area');
-
+    props_blue =  regionprops(blue_mask_clean, 'BoundingBox');
+    bbox = props_blue(1).BoundingBox;
+    width = bbox(3);
     if isempty(stats)
         % --- 원이 안 보이면 bounding box 중심으로 대체 ---
         props_blue = regionprops(blue_mask_clean, 'BoundingBox');
@@ -100,76 +102,14 @@ while 1
     end
 end
 
-%% 두번째 calibration 후에 조금씩 전진하면서 계속 위치를 조정하는 알고리즘
-while 1
-    x = input('f == 전진 t == 스탑','s');
-    disp(newline);
-    if x == 'f'
-        moveforward(drone, 'Distance', 0.5);
-        [frame , ~] = snapshot(cam);
-        hsv = rgb2hsv(frame);
-        h = hsv(:,:,1);
-        s = hsv(:,:,2);
-        v = hsv(:,:,3);
-
-        % 2-2) 파란색 마스크
-        blue_mask = (h > 0.55) & (h < 0.75) & (s > 0.4) & (v > 0.2);
-        blue_mask_clean = bwareafilt(blue_mask, 1);
-
-        % 2-3) 파란색 천 인식
-        props_blue = regionprops(blue_mask_clean, 'BoundingBox');
-
-
-
-        if isempty(props_blue)
-            warning("파란 영역도 못 찾았습니다. 멈춥니다.");
-            break; %파란 영역 인식 못했으면 알고리즘 생각
-        end
-        bbox = props_blue(1).BoundingBox;
-
-        %2-4) 파란색 천의 중심, 너비, 높이 를 통해 threshold를 넘어갔는지 판단 그리고 좌우정렬 알고리즘
-        imshow(frame); hold on
-        rectangle('Position', bbox, 'EdgeColor', 'b', 'LineWidth', 1);
-        hold off
-
-
-        if (bbox(3) > 700 && bbox(4) > 500)
-            centers = [ bbox(1) + bbox(3)/2,  bbox(2) + bbox(4)/2 ];
-            dis = centers - center_a;
-            if abs(dis(1)) < Err_pixel && abs(dis(2)) < Err_pixel
-                disp("좌우 정렬 완료 — 루프 탈출");
-                break;
-            end
-            if dis(1) > Err_pixel_1
-                moveright(drone,'Distance',0.2);
-                fprintf("move right\n");
-            elseif dis(1) < -Err_pixel_1
-                moveleft(drone,'Distance',0.2);
-                fprintf("move left\n");
-            end
-            if dis(2) > Err_pixel_1
-                movedown(drone,'Distance',0.2);
-                fprintf("movedown\n");
-            elseif dis(2) < -Err_pixel_1
-                moveup(drone,'Distance',0.2);
-                fprintf("moveup\n");
-            end
-        end
-    elseif x == 't'
-        land(drone)
-        break;
-    end
-end
-
 %% 원통과 일단 시켜보기
-while 1
-    x = input('f == 전진 t == 스탑','s');
-    if x == 'f'
-        moveforward(drone,'Distance', 0.5,'Speed',1);
-    elseif x == 't'
-        land(drone)
-        break;
-    end
+x = input('f == 전진 t == 스탑','s');
+if x == 'f'
+    dist = 6.376*exp(-0.001567*width);
+    dist = round(dist,1);
+    fprintf("%f", dist);
+elseif x == 't'
+    land(drone)
 end
 
 
