@@ -108,8 +108,12 @@ if x == 'f'
     dist = 6.376*exp(-0.001567*width);
     dist = round(dist,1);
     fprintf("%f", dist);
+    dist = dist+0.4;
+    moveforward(drone, 'Distance',dist, 'Speed',1);
+
 elseif x == 't'
     land(drone)
 end
-
+pause(3);
+land(drone);
 
