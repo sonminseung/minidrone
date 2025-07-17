@@ -110,12 +110,17 @@ while 1
     else
         if abs(dis(1)) < Err_pixel && abs(dis(2)) < Err_pixel
             disp("캘리브레이션 완료 — 루프 탈출");
+            Major = stats(idx).MajorAxisLength;
+            Minor = stats(idx).MinorAxisLength;
+
+            Avg_diameter = (Major+Minor) / 2;
+            circleflag = 1;
             break;
             % 1-5) 좌우 회전
         elseif dis(1) > Err_pixel
             moveright(drone,'Distance',0.2);
             fprintf("move right\n");
-        elseif dis(1) < -Err_pixel
+        elseif dis(1) < -Err_pixelx`
             moveleft(drone,'Distance',0.2);
             fprintf("move left\n");
         end
